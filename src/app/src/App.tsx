@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Navbar from './Components/Navbar'
 import { useSwipeable } from 'react-swipeable'
 import { AnimatePresence } from 'framer-motion'
+import Voice from './Components/Voice'
 function App() {
   // const [animating,setAnimating] = useState(false)
   const [isHome,setIsHome] = useState(true)
@@ -58,7 +59,9 @@ function App() {
       <AnimatePresence mode="wait">
       {isHome&&(<Home/>)}
       </AnimatePresence>
-
+      <AnimatePresence>
+        {!isHome&&(<Voice/>)}
+      </AnimatePresence>
     </div>
   )
 }
