@@ -1,0 +1,17 @@
+{
+  "name": "prml_speaker_recog_spring_2025",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+  "dev": "vite"
+}
+,
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
