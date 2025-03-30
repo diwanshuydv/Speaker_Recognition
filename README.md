@@ -32,3 +32,12 @@ npm install
 npm run dev
 ```
 (For Windows PowerShell: use `Remove-Item -Recurse -Force node_modules, package-lock.json` instead of `rm -rf`.)
+
+### Installing Librosa  
+
+5. Librosa can be installed using pip with the following command:  
+```bash
+pip install librosa
+#Ensure you have the necessary dependencies by running:
+
+pip install numpy scipy joblib soundfile audioread  
