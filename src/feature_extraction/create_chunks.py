@@ -1,57 +1,77 @@
 import os
 import librosa
 import soundfile as sf
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-def create_audio_chunks(input_dir, output_dir, chunk_duration=5):
+def process_audio_file(speaker, audio_file, speaker_path, speaker_output_path, chunk_duration):
     """
-    Splits all audio files in each speaker's folder into 5-second non-overlapping chunks.
+    Processes a single audio file by chunking and saving to disk.
+    """
+    if not audio_file.endswith(".wav"):
+        return
 
-    Args:
-        input_dir (str): Path to the directory containing speaker subdirectories with audio files.
-        output_dir (str): Path to save the processed audio chunks.
-        chunk_duration (int): Duration of each chunk in seconds (default: 5).
+    file_path = os.path.join(speaker_path, audio_file)
+    try:
+        y, sr = librosa.load(file_path, sr=None)
+    except Exception as e:
+        print(f"Error loading {file_path}: {e}")
+        return
+    
+    chunk_samples = chunk_duration * sr
+    total_samples = len(y)
+    
+    for chunk_idx, start_sample in enumerate(range(0, total_samples, chunk_samples)):
+        end_sample = start_sample + chunk_samples
+        if end_sample > total_samples:
+            continue
+
+        chunk = y[start_sample:end_sample]
+        chunk_filename = f"{speaker}_{os.path.splitext(audio_file)[0]}_chunk{chunk_idx}.wav"
+        chunk_path = os.path.join(speaker_output_path, chunk_filename)
+        try:
+            sf.write(chunk_path, chunk, sr)
+            print(f"Saved: {chunk_path}")
+        except Exception as e:
+            print(f"Error saving {chunk_path}: {e}")
+
+def create_audio_chunks(input_dir, output_dir, chunk_duration=2, max_threads=None):
+    """
+    Splits all audio files in each speaker's folder into chunks using multiple threads.
+    Uses a safe number of threads based on CPU count.
     """
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)  # Create output directory if it doesn't exist
+        os.makedirs(output_dir)
     
-    # Iterate through each speaker folder inside input directory
-    for speaker in os.listdir(input_dir):
-        speaker_path = os.path.join(input_dir, speaker)  # Full path to speaker folder
-        
-        if not os.path.isdir(speaker_path):
-            continue  # Skip if not a directory (to avoid non-folder files)
-        
-        speaker_output_path = os.path.join(output_dir, speaker)
-        os.makedirs(speaker_output_path, exist_ok=True)  # Ensure speaker output folder exists
-        
-        # Iterate through all .wav files inside each speaker's folder
-        for file_idx, audio_file in enumerate(os.listdir(speaker_path)):
-            if not audio_file.endswith(".wav"):  # Process only WAV files
+    if max_threads is None:
+        max_threads = os.cpu_count() * 2  # Safe for I/O-bound tasks
+
+    futures = []
+    with ThreadPoolExecutor(max_workers=max_threads) as executor:
+        for speaker in os.listdir(input_dir):
+            speaker_path = os.path.join(input_dir, speaker)
+            if not os.path.isdir(speaker_path):
                 continue
-            
-            file_path = os.path.join(speaker_path, audio_file)
-            y, sr = librosa.load(file_path, sr=None)  # Load audio with original sampling rate
-            chunk_samples = chunk_duration * sr  # Convert chunk duration to samples
-            total_samples = len(y)  # Total samples in the audio file
-            
-            # Split audio into non-overlapping 5-second chunks
-            for chunk_idx, start_sample in enumerate(range(0, total_samples, chunk_samples)):
-                end_sample = start_sample + chunk_samples
-                
-                if end_sample > total_samples:  # Skip if the last chunk is shorter than 5 seconds
-                    continue
-                
-                chunk = y[start_sample:end_sample]  # Extract chunk from audio
-                chunk_filename = f"{speaker}_file{file_idx}_chunk{chunk_idx}.wav"
-                chunk_path = os.path.join(speaker_output_path, chunk_filename)
-                
-                # Save the chunk as a new audio file
-                sf.write(chunk_path, chunk, sr)
-                print(f"Saved: {chunk_path}")
-    
+
+            speaker_output_path = os.path.join(output_dir, speaker)
+            os.makedirs(speaker_output_path, exist_ok=True)
+
+            for audio_file in os.listdir(speaker_path):
+                future = executor.submit(
+                    process_audio_file,
+                    speaker,
+                    audio_file,
+                    speaker_path,
+                    speaker_output_path,
+                    chunk_duration
+                )
+                futures.append(future)
+        
+        for future in as_completed(futures):
+            future.result()
+
     print("Processing complete!")
 
 # Example usage
 input_directory = "data/raw/50_speakers_audio_data"
-output_directory = "data/processed/50_speakers_audio_data"
+output_directory = "data/processed33/50_speakers_audio_data"
 create_audio_chunks(input_directory, output_directory)
