@@ -11,16 +11,16 @@ import os,sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.pred_models.pred_cnn import pred_speaker
+from src.models.pred_models.pred_cnn import pred_speaker
 
 app =  Flask(__name__)
 CORS(app)
 
 socketio = SocketIO(app, cors_allowed_origins="*",async_mode='eventlet')
 
-from resemblyzer import preprocess_wav, VoiceEncoder
-from qdrant_client import QdrantClient
-from collections import Counter
+# from resemblyzer import preprocess_wav, VoiceEncoder
+# from qdrant_client import QdrantClient
+# from collections import Counter
 
 
 # def pred_speaker(wav_path: str, collection_name: str = "speaker_recognition_testing",url: str = "http://localhost:6333"): 
