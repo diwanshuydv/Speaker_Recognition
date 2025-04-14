@@ -41,3 +41,30 @@ pip install librosa
 #Ensure you have the necessary dependencies by running:
 
 pip install numpy scipy joblib soundfile audioread  
+
+
+
+6. Technologies Used
+Frontend: React.js, Vite
+
+Backend: Python, Flask
+
+Audio Processing: Librosa, NumPy, SciPy
+
+Machine Learning: SVM (Support Vector Machine)
+
+7. Future Improvements
+
+🎯 Incorporate deep learning models for improved accuracy
+
+📈 Add visual plots of MFCC features
+
+🗂️ Improve multi-speaker classification support
+
+🛡️ Add authentication and user profiles for voice registration
+
+8. License
+
+This project is for academic use only. Please contact the authors for reuse.
+
+
