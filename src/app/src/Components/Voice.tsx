@@ -10,9 +10,10 @@ function Voice() {
   const [speaker, setSpeaker] = useState<string | null>("loading...");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const socket = useMemo<Socket>(() => io("http://localhost:3000"), []);
+  const socket = useMemo<Socket>(() => io("http://127.0.0.1:3001"), []);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
+  const [file, setFile] = useState<File>();
+  
   useEffect(() => {
     socket.on("recognised_speaker", (data: { data: string }) => {
       setSpeaker(data.data);
@@ -35,8 +36,8 @@ function Voice() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setIsSpeaking(true);
       console.log("Microphone access granted!");
-      
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      const mimeType = "audio/webm"; // or try 'audio/ogg', 'audio/wav' depending on browser
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType }); 
       
       mediaRecorderRef.current.ondataavailable = (event: BlobEvent) => {
         if (event.data && event.data.size > 0) {
@@ -86,9 +87,10 @@ function Voice() {
       animate={{ opacity: 1, y: 0, scaleX: 1 }}
       exit={{ opacity: 0, y: 500, scaleX: 0 }}
       transition={{ duration: 0.8 }}
-      className="fixed inset-0 top-15 flex w-screen h-screen items-center justify-center bg-[rgba(0,0,0,0.5)] text-white rounded-t-3xl"
+      className="fixed inset-0 top-15 flex flex-col w-screen h-screen items-center justify-center bg-[rgba(0,0,0,0.5)] text-white rounded-t-3xl"
     >
       <div className="relative -top-30 w-40 h-40 flex justify-center items-center">
+      <div className="text-3xl text-blue-200"><b>{speaker ? speaker : ""}</b></div>
         {[...Array(7)].map((_, i) => (
           <div
             key={i}
@@ -101,7 +103,6 @@ function Voice() {
             }}
           ></div>
         ))}
-        <div className="text-sm">{speaker ? speaker : ""}</div>
       </div>
       <div
         className="fixed cursor-pointer bg-[rgba(70,70,253,0.53)] bottom-10 text-3xl text-center font-sans w-[100px] h-[100px] flex justify-center items-center rounded-[100%] text-white px-4 py-2"
@@ -109,6 +110,33 @@ function Voice() {
       >
         <img src={!isSpeaking ? on_mic : off_mic} alt="" />
       </div>
+      <div className="flex flex-col space-y-2 items-center justify-center p-2 text-center">   
+        {/* <div className="flex flex-col items-center justify-center p-2 text-center"> */}
+        <input className="hidden" type="file" onChange={(e)=>setFile(e.target.files[0])} name="" id="audio_file" />
+        <label htmlFor="audio_file" className="bg-black p-3 text-2xl rounded-full">Upload Audio</label>
+        <div className="bg-black rounded-full p-3 text-xl">{file?.name}</div>
+
+        <button className="bg-black p-3 text-2xl rounded-full" onClick={async ()=>{
+          const formData = new FormData();
+          formData.append("file", file);
+          
+          try {
+            const response = await fetch("http://localhost:3001/api/upload", {
+              method: "POST",
+              body: formData,
+            });
+        
+            const result = await response.json();
+            console.log("Speaker Prediction:", result);
+            setSpeaker(result.result);
+          } catch (error) {
+            console.error("Error uploading audio:", error);
+          }
+        }}>
+          Submit
+        </button>
+        </div>
+      {/* </div> */}
     </motion.div>
   );
 }
