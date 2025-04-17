@@ -1,5 +1,4 @@
 import numpy as np
-# import pandas as pd
 import librosa
 import matplotlib.pyplot as plt
 import sklearn
@@ -13,16 +12,13 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
-x=np.load("./../../data/features/x_3_3.npy")
-y=np.load("./../../data/features/y_3_3.npy")
+x = np.load("./../../data/features/x_3_3.npy")
+y = np.load("./../../data/features/y_3_3.npy")
 
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, random_state=42)
 print("Training Data Shape:", x_train.shape)
 print("Test Data Shape:", x_test.shape)
-input_shape= x_train.shape[1:]
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+input_shape = x_train.shape[1:]
 
 class SpeakerCNN(nn.Module):
     def __init__(self, input_shape, no_speakers, dropout_rate=0.5):
@@ -86,7 +82,7 @@ class SpeakerCNN(nn.Module):
         x = self.fc2(x)
 
         return x
-    
+
 
 x_train_tensor = torch.tensor(x_train, dtype=torch.float32)
 y_train_tensor = torch.tensor(y_train, dtype=torch.long)
@@ -101,12 +97,7 @@ valid_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
 
-
 import optuna
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
 from sklearn.metrics import accuracy_score
 
 # Define the objective function
@@ -174,7 +165,7 @@ print(f"Study results saved to {study_file}")
 # Retrieve the best parameters
 best_params = study.best_params
 print("Best Parameters:", best_params)
-# best_params ={'learning_rate': 0.001877001421819301, 'dropout_rate': 0.2867160906483275, 'optimizer': 'Adam', 'batch_size': 16}
+
 # Train the final model with the best parameters
 final_model = SpeakerCNN(input_shape=input_shape, no_speakers=51, dropout_rate=best_params["dropout_rate"])
 final_model = final_model.to(device)
@@ -212,6 +203,7 @@ with torch.no_grad():
 
 test_accuracy = accuracy_score(test_targets, test_preds)
 print("Test Accuracy: {:.2f}%".format(test_accuracy * 100))
+
 # Save the final model
 torch.save(final_model.state_dict(), "final_model_3_3.pth")
 # Save the model architecture

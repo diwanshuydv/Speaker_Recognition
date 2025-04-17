@@ -7,6 +7,7 @@ import torch
 import random
 from torch.utils.data import Dataset, DataLoader
 
+
 def wav_to_mel_spectrogram(wav):
     """
     Derives a mel spectrogram ready to be used by the encoder from a preprocessed audio waveform.
@@ -23,7 +24,7 @@ def wav_to_mel_spectrogram(wav):
 
 
 class VoiceEncoder(nn.Module):
-    def __init__(self, device: Union[str, torch.device]=None, verbose=True, weights_fpath: Union[Path, str]=None):
+    def __init__(self, device: Union[str, torch.device] = None, verbose=True, weights_fpath: Union[Path, str] = None):
         """
         If None, defaults to cuda if available, otherwise runs on cpu. Embeddings are always returned
         on the cpu as numpy arrays.
@@ -40,7 +41,7 @@ class VoiceEncoder(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
-            
+
             # Block 2
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
@@ -63,7 +64,7 @@ class VoiceEncoder(nn.Module):
         # Fully connected layer to map from CNN output to embedding dimension.
         self.fc = nn.Linear(256, model_embedding_size)
         self.relu = nn.ReLU()
-        
+
         # Get the target device
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -79,7 +80,7 @@ class VoiceEncoder(nn.Module):
 
         if not weights_fpath.exists():
             raise Exception("Couldn't find the voice encoder pretrained model at %s." %
-                            weights_fpath)
+                             weights_fpath)
         start = timer()
         checkpoint = torch.load(weights_fpath, map_location="cpu")
         self.load_state_dict(checkpoint["model_state"], strict=False)
@@ -98,17 +99,16 @@ class VoiceEncoder(nn.Module):
         # Add a channel dimension: expecting shape (batch_size, 1, n_frames, mel_n_channels)
         mels = mels.unsqueeze(1)
         # Forward through CNN
-        x = self.cnn(mels)  
-        assert not torch.isnan(x).any(), "NaN in CNN"     # shape: (batch_size, 256, 1, 1)
+        x = self.cnn(mels)
+        assert not torch.isnan(x).any(), "NaN in CNN"  # shape: (batch_size, 256, 1, 1)
         x = x.view(x.size(0), -1)  # Flatten to (batch_size, 256)
         embeds_raw = self.relu(self.fc(x))
-        assert not torch.isnan(embeds_raw).any(), "NaN in RElu" 
+        assert not torch.isnan(embeds_raw).any(), "NaN in ReLU"
         # Normalize the embeddings to lie in the range [0, 1]
         print("here")
         eps = 1e-7  # Small value to avoid division by zero
         norms = torch.norm(embeds_raw, dim=1, keepdim=True).clamp(min=eps)
         normalized_embeds = embeds_raw / norms
-        # assert not torch.isnan(embeds_raw / torch.norm(embeds_raw, dim=1, keepdim=True)).any(), "NaN in Return"
         return normalized_embeds
 
     @staticmethod
@@ -181,10 +181,10 @@ class VoiceEncoder(nn.Module):
 
 ### Training Loop Function
 
-def train_voice_encoder(model, dataloader, num_epochs, optimizer, criterion, device,save_path):
+def train_voice_encoder(model, dataloader, num_epochs, optimizer, criterion, device, save_path):
     """
     Trains the voice encoder model using a triplet loss.
-    
+
     :param model: instance of VoiceEncoder
     :param dataloader: DataLoader yielding triplets in the form (anchor, positive, negative) where
                        each is a batch of mel spectrograms as a float32 tensor
@@ -207,7 +207,7 @@ def train_voice_encoder(model, dataloader, num_epochs, optimizer, criterion, dev
             anchor = anchor.to(device)
             positive = positive.to(device)
             negative = negative.to(device)
-            
+
             optimizer.zero_grad()
 
             # Forward pass: compute embeddings for each sample in the triplet
@@ -236,106 +236,34 @@ def train_voice_encoder(model, dataloader, num_epochs, optimizer, criterion, dev
     torch.save({"model_state": model.state_dict()}, save_path)
     print(f"Model saved to {save_path}")
 
+
 class TripletDataset(Dataset):
     def __init__(self, X, y):
         """
         Args:
             X: numpy array or list of feature vectors (e.g., mel-spectrograms).
-            y: numpy array or list of labels corresponding to X.
+            y: list or numpy array of corresponding labels.
         """
         self.X = X
         self.y = y
-        self.class_to_indices = self._group_by_class()
-
-    def _group_by_class(self):
-        """
-        Groups indices by class for efficient positive/negative sampling.
-        """
-        class_to_indices = {}
-        for idx, label in enumerate(self.y):
-            if label not in class_to_indices:
-                class_to_indices[label] = []
-            class_to_indices[label].append(idx)
-        return class_to_indices
 
     def __len__(self):
-        return len(self.X)  # The number of anchors to be generated.
+        return len(self.X)
 
-    def __getitem__(self, index):
-        """
-        Returns:
-            anchor: A feature vector from self.X
-            positive: Another feature vector with the same label
-            negative: A feature vector with a different label
-        """
-        # Anchor
-        anchor = self.X[index]
-        anchor_label = self.y[index]
+    def __getitem__(self, idx):
+        anchor = self.X[idx]
+        positive = self.X[random.choice(range(len(self.X)))]
+        negative = self.X[random.choice(range(len(self.X)))]
+        return anchor, positive, negative
 
-        # Positive (same class as anchor)
-        positive_index = random.choice(self.class_to_indices[anchor_label])
-        while positive_index == index:  # Ensure positive is not the same as anchor
-            positive_index = random.choice(self.class_to_indices[anchor_label])
-        positive = self.X[positive_index]
-
-        # Negative (different class from anchor)
-        negative_label = random.choice([label for label in self.class_to_indices if label != anchor_label])
-        negative_index = random.choice(self.class_to_indices[negative_label])
-        negative = self.X[negative_index]
-
-        return torch.tensor(anchor, dtype=torch.float32), \
-               torch.tensor(positive, dtype=torch.float32), \
-               torch.tensor(negative, dtype=torch.float32)
 
 # Example usage:
+# Define your model, optimizer, loss criterion, etc.
+model = VoiceEncoder(device="cuda")
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+criterion = nn.TripletMarginLoss(margin=1.0)
+train_dataset = TripletDataset(X_train, y_train)  # Replace X_train and y_train with your dataset
+train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
-if __name__ == "__main__":
-
-    ## Mel-filterbank
-    mel_window_length = 25  # In milliseconds
-    mel_window_step = 10    # In milliseconds
-    mel_n_channels = 40
-
-
-    ## Audio
-    sampling_rate = 16000
-    # Number of spectrogram frames in a partial utterance
-    partials_n_frames = 160     # 1600 ms
-
-
-    ## Voice Activation Detection
-    # Window size of the VAD. Must be either 10, 20 or 30 milliseconds.
-    # This sets the granularity of the VAD. Should not need to be changed.
-    vad_window_length = 30  # In milliseconds
-    # Number of frames to average together when performing the moving average smoothing.
-    # The larger this value, the larger the VAD variations must be to not get smoothed out. 
-    vad_moving_average_width = 8
-    # Maximum number of consecutive silent frames a segment can have.
-    vad_max_silence_length = 6
-
-
-    ## Audio volume normalization
-    audio_norm_target_dBFS = -30
-
-
-    ## Model parameters
-    model_hidden_size = 256
-    model_embedding_size = 256
-    model_num_layers = 3
-
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = VoiceEncoder(device=device, verbose=True)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    criterion = nn.TripletMarginLoss(margin=1.0)
-
-    # train_loader should be implemented to load and preprocess your training data
-    num_epochs = 10
-
-    x_train = np.load("/home/raid3/Diwanshu/prml/prml_speaker_recog_spring_2025/data/features/x_train_3_3.npy")
-    y_train = np.load("/home/raid3/Diwanshu/prml/prml_speaker_recog_spring_2025/data/features/y_train_3_3.npy")
-    assert not np.isnan(x_train).any(), "Input contains NaN"
-    assert not np.isinf(y_train).any(), "Input contains Inf"
-    dataset = TripletDataset(x_train, y_train)
-    train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
-    train_voice_encoder(model, train_loader, num_epochs, optimizer, criterion, device,"cnn_model.pt")
+# Train the model
+train_voice_encoder(model, train_dataloader, num_epochs=10, optimizer=optimizer, criterion=criterion, device="cuda", save_path="voice_encoder.pth")
