@@ -2,12 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class SpeakerCNN(nn.Module):
     def __init__(self, input_shape, no_speakers):
         super(SpeakerCNN, self).__init__()
-        
-        # Unpack input shape dimensions
-        self.time_frames, self.mfcc_features = input_shape  # Example: input_shape=(29, 39)
+
+        # Unpack input shape dimensions (e.g., input_shape=(29, 39))
+        self.time_frames, self.mfcc_features = input_shape
 
         # First convolution block
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
@@ -26,7 +27,9 @@ class SpeakerCNN(nn.Module):
 
         # Calculate the output shape after 3 pooling layers
         conv_out_time = self._calculate_output_dim(self.time_frames, 3)
-        conv_out_features = self._calculate_output_dim(self.mfcc_features, 3)
+        conv_out_features = self._calculate_output_dim(
+            self.mfcc_features, 3
+        )
         flattened_dim = 128 * conv_out_time * conv_out_features
 
         # Dropout for regularization
@@ -37,12 +40,13 @@ class SpeakerCNN(nn.Module):
         self.fc2 = nn.Linear(256, no_speakers)
 
     def _calculate_output_dim(self, size, num_pools):
-        # Calculates the output dimension after a series of MaxPool2d(2)
+        """Calculate the output dimension after a series of MaxPool2d(2)."""
         for _ in range(num_pools):
             size = size // 2
         return size
 
     def forward(self, x):
+        # Add channel dimension: (B, T, F) -> (B, 1, T, F)
         x = x.unsqueeze(1)
 
         x = F.relu(self.bn1(self.conv1(x)))
@@ -56,11 +60,7 @@ class SpeakerCNN(nn.Module):
 
         x = x.view(x.size(0), -1)
         x = self.dropout(x)
-        
+
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
-
-
-
-        

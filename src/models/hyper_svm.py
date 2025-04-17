@@ -7,9 +7,11 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import LabelEncoder
 
+
 # Function to set the seed for reproducibility
 def set_seed(seed):
     np.random.seed(seed)
+
 
 set_seed(42)
 
@@ -20,7 +22,9 @@ y = np.load("./../../data/features/y_1_3.npy")
 print("Data Shape:", x.shape)
 
 # Split the data into training and test sets
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+x_train, x_test, y_train, y_test = train_test_split(
+    x, y, test_size=0.2, random_state=42
+)
 print("Training Data Shape:", x_train.shape)
 print("Test Data Shape:", x_test.shape)
 
@@ -41,6 +45,7 @@ study_dir = "/data/study_svm"
 os.makedirs(study_dir, exist_ok=True)
 study_file = os.path.join(study_dir, "study_results_svm.csv")
 
+
 # Define the objective function for Optuna
 def objective(trial):
     # Suggest hyperparameters for SVC
@@ -49,17 +54,20 @@ def objective(trial):
         "kernel": trial.suggest_categorical("kernel", ["linear", "rbf", "poly"]),
         "gamma": trial.suggest_loguniform("gamma", 1e-4, 1e1)
     }
-    
+
     # If the selected kernel is polynomial, add the degree hyperparameter
     if svc_params["kernel"] == "poly":
         svc_params["degree"] = trial.suggest_int("degree", 2, 5)
-    
+
     # Instantiate the SVM classifier with the suggested hyperparameters
     model = SVC(**svc_params, random_state=42)
-    
+
     # Evaluate with 3-fold cross-validation on the training set
-    cv_scores = cross_val_score(model, x_train_flat, y_train_encoded, cv=3, scoring="accuracy")
+    cv_scores = cross_val_score(
+        model, x_train_flat, y_train_encoded, cv=3, scoring="accuracy"
+    )
     return np.mean(cv_scores)
+
 
 # Create and run the Optuna study
 study = optuna.create_study(direction="maximize")

@@ -3,7 +3,7 @@ from qdrant_client import QdrantClient
 from collections import Counter
 
 
-def pred_speaker(wav_path: str, collection_name: str = "speaker_recognition_testing",url: str = "http://localhost:6333"): 
+def pred_speaker(wav_path: str, collection_name: str = "speaker_recognition_testing", url: str = "http://localhost:6333"):
     client = QdrantClient(url=url)
     encoder = VoiceEncoder("cuda")
     test_wav = preprocess_wav(wav_path)
