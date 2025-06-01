@@ -1,4 +1,4 @@
-# prml_speaker_recog_spring_2025
+# CSL2060_speaker_recognition_spring_2025
 If you encounter the error:
 ```sh
 'vite' is not recognized as an internal or external command
